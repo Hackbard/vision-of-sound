@@ -7,6 +7,7 @@ export class AudioAnalyzer {
         this.dataArray = null;
         this.frequencyData = null;
         this.active = false;
+        this.deviceId = null;
         
         // Frequency band ranges (in Hz)
         this.bands = {
@@ -18,8 +19,12 @@ export class AudioAnalyzer {
     
     async init(deviceId = null) {
         try {
+            this.deviceId = deviceId;
+            
             const constraints = {
-                audio: deviceId ? { deviceId: { exact: deviceId } } : true
+                audio: deviceId 
+                    ? { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                    : { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
             };
             
             this.stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -43,6 +48,10 @@ export class AudioAnalyzer {
             console.error('Audio initialization failed:', error);
             throw error;
         }
+    }
+    
+    getDeviceId() {
+        return this.deviceId;
     }
     
     stop() {
@@ -174,7 +183,23 @@ export class AudioAnalyzer {
     }
     
     static async getAudioDevices() {
+        // Request permission first to get device labels
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+        } catch (e) {
+            console.warn('Could not get initial audio permission:', e);
+        }
+        
         const devices = await navigator.mediaDevices.enumerateDevices();
         return devices.filter(device => device.kind === 'audioinput');
+    }
+    
+    static async findBlackHoleDevice() {
+        const devices = await AudioAnalyzer.getAudioDevices();
+        return devices.find(d => 
+            d.label.toLowerCase().includes('blackhole') || 
+            d.label.toLowerCase().includes('black hole')
+        );
     }
 }

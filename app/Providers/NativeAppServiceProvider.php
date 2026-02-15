@@ -5,7 +5,6 @@ namespace App\Providers;
 use Native\Desktop\Facades\Window;
 use Native\Desktop\Facades\Menu;
 use Native\Desktop\Contracts\ProvidesPhpIni;
-use Native\Desktop\Menu\Items\Label;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
 {
@@ -15,21 +14,24 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function boot(): void
     {
-        Menu::make()
-            ->appMenu()
-            ->submenu('Simulation', Menu::make()
-                ->link('/reset/random', 'Random Pattern', 'CmdOrCtrl+R')
-                ->link('/reset/glider', 'Glider')
-                ->link('/reset/pulsar', 'Pulsar')
-                ->link('/reset/glider-gun', 'Glider Gun')
-                ->separator()
-                ->link('/toggle-pause', 'Pause/Resume', 'Space')
-            )
-            ->submenu('View', Menu::make()
-                ->link('/toggle-fullscreen', 'Toggle Fullscreen', 'CmdOrCtrl+F')
-                ->link('/toggle-controls', 'Toggle Controls', 'CmdOrCtrl+H')
-            )
-            ->register();
+        Menu::create(
+            Menu::app(),
+            Menu::label('Simulation')->submenu(
+                Menu::link('/reset/random', 'Random Pattern')->hotkey('CmdOrCtrl+R'),
+                Menu::link('/reset/glider', 'Glider'),
+                Menu::link('/reset/pulsar', 'Pulsar'),
+                Menu::link('/reset/glider-gun', 'Glider Gun'),
+                Menu::separator(),
+                Menu::link('/toggle-pause', 'Pause/Resume')
+            ),
+            Menu::label('View')->submenu(
+                Menu::fullscreen('Toggle Fullscreen'),
+                Menu::link('/toggle-controls', 'Toggle Controls')->hotkey('CmdOrCtrl+H'),
+                Menu::separator(),
+                Menu::devTools('Developer Tools')
+            ),
+            Menu::window()
+        );
 
         Window::open('main')
             ->title('Game of Sound')

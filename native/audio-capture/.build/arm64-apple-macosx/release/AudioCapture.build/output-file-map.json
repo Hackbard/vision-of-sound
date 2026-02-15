@@ -1,0 +1,13 @@
+{
+  "": {
+    "dependencies": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/AudioCapture.d",
+    "object": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/AudioCapture.o",
+    "swift-dependencies": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/master.swiftdeps"
+  },
+  "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/Sources/AudioCapture/main.swift": {
+    "object": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/main.swift.o",
+    "swiftmodule": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/main.swiftdeps",
+    "diagnostics": "/Users/klein/workspace/_private/game-of-sound/native/audio-capture/.build/arm64-apple-macosx/release/AudioCapture.build/main.dia"
+  }
+}

@@ -12,6 +12,28 @@ export class GameOfLife {
         this.targetColor = { h: 0, s: 0, l: 100 };
         this.trailOpacity = 0.15;
         
+        // Auto-reset settings
+        this.autoReset = true;
+        this.minLifeThreshold = 0.5; // Percentage (0-100 scale, so 0.5 = 0.5%)
+        this.currentPattern = 'random';
+        this.fadeOutAlpha = 1;
+        this.isFadingOut = false;
+        this.checkInterval = 30; // Check every N frames
+        this.frameCount = 0;
+        
+        // Stagnation detection
+        this.lastChanges = 0;
+        this.stagnationFrames = 0;
+        this.stagnationThreshold = 60; // Frames of no/low change before reset
+        
+        // Intro animation
+        this.isIntroPlaying = false;
+        this.introType = 'random'; // Will be randomly selected
+        this.introProgress = 0;
+        this.introSpeed = 0.035; // Speed of intro animation
+        this.introCells = [];
+        this.newCellGlow = new Map(); // Track glow for new cells
+        
         this.resize();
         window.addEventListener('resize', () => this.resize());
     }
@@ -58,30 +80,236 @@ export class GameOfLife {
         );
     }
     
-    reset(pattern = 'random') {
+    setAutoReset(enabled) {
+        this.autoReset = enabled;
+    }
+    
+    setMinLifeThreshold(percent) {
+        this.minLifeThreshold = percent;
+    }
+    
+    getLifePercentage() {
+        let alive = 0;
+        const total = this.rows * this.cols;
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                if (this.grid[y][x]) alive++;
+            }
+        }
+        return (alive / total) * 100;
+    }
+    
+    startIntro(pattern) {
         this.initGrid();
+        this.isIntroPlaying = true;
+        this.introProgress = 0;
+        this.introCells = [];
+        this.currentPattern = pattern;
         
-        switch (pattern) {
-            case 'random':
-                this.randomize(0.15);
+        // Select random intro type
+        const introTypes = ['spiral', 'explosion', 'rain', 'waves', 'dna', 'corners'];
+        this.introType = introTypes[Math.floor(Math.random() * introTypes.length)];
+        
+        // Pre-calculate cells for the intro based on pattern
+        this.calculateIntroCells(pattern);
+    }
+    
+    calculateIntroCells(pattern) {
+        const centerX = Math.floor(this.cols / 2);
+        const centerY = Math.floor(this.rows / 2);
+        const targetCells = [];
+        
+        // First, determine which cells should be alive
+        if (pattern === 'random') {
+            for (let y = 0; y < this.rows; y++) {
+                for (let x = 0; x < this.cols; x++) {
+                    if (Math.random() < 0.15) {
+                        targetCells.push({ x, y });
+                    }
+                }
+            }
+        } else {
+            // For patterns, calculate them first
+            const tempGrid = Array(this.rows).fill(null).map(() => Array(this.cols).fill(0));
+            this.grid = tempGrid;
+            
+            switch (pattern) {
+                case 'glider':
+                    this.fillWithPattern(this.patterns.glider, 25, 20);
+                    break;
+                case 'pulsar':
+                    this.fillWithPattern(this.patterns.pulsar, 35, 30);
+                    break;
+                case 'glider-gun':
+                    this.fillWithPattern(this.patterns.gliderGun, 50, 20);
+                    break;
+                case 'blinker':
+                    this.fillWithPattern(this.patterns.blinker, 15, 10);
+                    break;
+                case 'beacon':
+                    this.fillWithPattern(this.patterns.beacon, 20, 15);
+                    break;
+            }
+            
+            for (let y = 0; y < this.rows; y++) {
+                for (let x = 0; x < this.cols; x++) {
+                    if (this.grid[y][x]) {
+                        targetCells.push({ x, y });
+                    }
+                }
+            }
+            this.initGrid();
+        }
+        
+        // Sort cells based on intro type
+        switch (this.introType) {
+            case 'spiral':
+                targetCells.sort((a, b) => {
+                    const angleA = Math.atan2(a.y - centerY, a.x - centerX);
+                    const distA = Math.hypot(a.x - centerX, a.y - centerY);
+                    const angleB = Math.atan2(b.y - centerY, b.x - centerX);
+                    const distB = Math.hypot(b.x - centerX, b.y - centerY);
+                    const spiralA = distA + angleA * 10;
+                    const spiralB = distB + angleB * 10;
+                    return spiralA - spiralB;
+                });
                 break;
-            case 'glider':
-                this.placePattern(this.patterns.glider, Math.floor(this.cols / 4), Math.floor(this.rows / 4));
+                
+            case 'explosion':
+                targetCells.sort((a, b) => {
+                    const distA = Math.hypot(a.x - centerX, a.y - centerY);
+                    const distB = Math.hypot(b.x - centerX, b.y - centerY);
+                    return distA - distB;
+                });
                 break;
-            case 'pulsar':
-                this.placePattern(this.patterns.pulsar, Math.floor(this.cols / 2) - 7, Math.floor(this.rows / 2) - 7);
+                
+            case 'rain':
+                targetCells.sort((a, b) => {
+                    return (a.y + Math.random() * 5) - (b.y + Math.random() * 5);
+                });
                 break;
-            case 'glider-gun':
-                this.placePattern(this.patterns.gliderGun, 2, Math.floor(this.rows / 2) - 5);
+                
+            case 'waves':
+                targetCells.sort((a, b) => {
+                    const waveA = Math.sin(a.x * 0.2) * 10 + a.y;
+                    const waveB = Math.sin(b.x * 0.2) * 10 + b.y;
+                    return waveA - waveB;
+                });
                 break;
-            case 'blinker':
-                this.placePattern(this.patterns.blinker, Math.floor(this.cols / 2) - 1, Math.floor(this.rows / 2) - 1);
+                
+            case 'dna':
+                targetCells.sort((a, b) => {
+                    const helixA = a.y + Math.sin(a.y * 0.3) * (a.x - centerX);
+                    const helixB = b.y + Math.sin(b.y * 0.3) * (b.x - centerX);
+                    return helixA - helixB;
+                });
                 break;
-            case 'beacon':
-                this.placePattern(this.patterns.beacon, Math.floor(this.cols / 2) - 2, Math.floor(this.rows / 2) - 2);
+                
+            case 'corners':
+                targetCells.sort((a, b) => {
+                    const corners = [
+                        { x: 0, y: 0 },
+                        { x: this.cols, y: 0 },
+                        { x: 0, y: this.rows },
+                        { x: this.cols, y: this.rows }
+                    ];
+                    const nearestA = Math.min(...corners.map(c => Math.hypot(a.x - c.x, a.y - c.y)));
+                    const nearestB = Math.min(...corners.map(c => Math.hypot(b.x - c.x, b.y - c.y)));
+                    return nearestA - nearestB;
+                });
                 break;
-            default:
-                this.randomize(0.15);
+        }
+        
+        this.introCells = targetCells;
+    }
+    
+    updateIntro() {
+        const prevCells = Math.floor(this.introProgress * this.introCells.length);
+        this.introProgress += this.introSpeed;
+        const cellsToPlace = Math.floor(this.introProgress * this.introCells.length);
+        
+        // Place new cells and add glow
+        for (let i = prevCells; i < cellsToPlace && i < this.introCells.length; i++) {
+            const cell = this.introCells[i];
+            this.grid[cell.y][cell.x] = 1;
+            this.newCellGlow.set(`${cell.x},${cell.y}`, 1.0);
+        }
+        
+        // Fade out glow
+        for (const [key, glow] of this.newCellGlow) {
+            const newGlow = glow - 0.05;
+            if (newGlow <= 0) {
+                this.newCellGlow.delete(key);
+            } else {
+                this.newCellGlow.set(key, newGlow);
+            }
+        }
+        
+        if (this.introProgress >= 1) {
+            this.isIntroPlaying = false;
+            this.introCells = [];
+            this.newCellGlow.clear();
+        }
+    }
+    
+    reset(pattern = 'random', skipIntro = false) {
+        this.currentPattern = pattern;
+        this.fadeOutAlpha = 1;
+        this.isFadingOut = false;
+        this.stagnationFrames = 0;
+        this.lastChanges = 0;
+        
+        if (skipIntro) {
+            this.isIntroPlaying = false;
+            this.initGrid();
+            
+            switch (pattern) {
+                case 'random':
+                    this.randomize(0.15);
+                    break;
+                case 'glider':
+                    this.fillWithPattern(this.patterns.glider, 25, 20);
+                    break;
+                case 'pulsar':
+                    this.fillWithPattern(this.patterns.pulsar, 35, 30);
+                    break;
+                case 'glider-gun':
+                    this.fillWithPattern(this.patterns.gliderGun, 50, 20);
+                    break;
+                case 'blinker':
+                    this.fillWithPattern(this.patterns.blinker, 15, 10);
+                    break;
+                case 'beacon':
+                    this.fillWithPattern(this.patterns.beacon, 20, 15);
+                    break;
+                default:
+                    this.randomize(0.15);
+            }
+        } else {
+            this.startIntro(pattern);
+        }
+    }
+    
+    fillWithPattern(pattern, spacingX, spacingY) {
+        const patternWidth = pattern[0]?.length || 1;
+        const patternHeight = pattern.length;
+        
+        // Calculate how many patterns fit
+        const countX = Math.floor(this.cols / spacingX);
+        const countY = Math.floor(this.rows / spacingY);
+        
+        // Center the grid of patterns
+        const totalWidth = countX * spacingX;
+        const totalHeight = countY * spacingY;
+        const offsetX = Math.floor((this.cols - totalWidth) / 2) + Math.floor((spacingX - patternWidth) / 2);
+        const offsetY = Math.floor((this.rows - totalHeight) / 2) + Math.floor((spacingY - patternHeight) / 2);
+        
+        for (let gy = 0; gy < countY; gy++) {
+            for (let gx = 0; gx < countX; gx++) {
+                const x = offsetX + gx * spacingX;
+                const y = offsetY + gy * spacingY;
+                this.placePattern(pattern, x, y);
+            }
         }
     }
     
@@ -166,6 +394,8 @@ export class GameOfLife {
             Array(this.cols).fill(0)
         );
         
+        let changes = 0;
+        
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const neighbors = this.countNeighbors(x, y);
@@ -183,6 +413,11 @@ export class GameOfLife {
                     newGrid[y][x] = neighbors === 3 ? 1 : 0;
                 }
                 
+                // Count state changes
+                if (newGrid[y][x] !== this.grid[y][x]) {
+                    changes++;
+                }
+                
                 // Fade trail
                 if (this.trailGrid[y][x] > 0) {
                     this.trailGrid[y][x] *= 0.85;
@@ -191,6 +426,14 @@ export class GameOfLife {
                     }
                 }
             }
+        }
+        
+        // Track stagnation
+        this.lastChanges = changes;
+        if (changes < 5) {
+            this.stagnationFrames++;
+        } else {
+            this.stagnationFrames = 0;
         }
         
         this.grid = newGrid;
@@ -217,6 +460,7 @@ export class GameOfLife {
         this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
         
         const { h, s, l } = this.currentColor;
+        const alpha = this.fadeOutAlpha;
         
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
@@ -224,14 +468,28 @@ export class GameOfLife {
                 const py = this.offsetY + y * this.cellSize;
                 
                 if (this.grid[y][x]) {
-                    // Living cell - full color
-                    this.ctx.fillStyle = `hsl(${h}, ${s}%, ${l}%)`;
+                    const glowKey = `${x},${y}`;
+                    const glow = this.newCellGlow.get(glowKey) || 0;
+                    
+                    if (glow > 0 && this.isIntroPlaying) {
+                        // Glowing new cell during intro
+                        const glowSize = this.cellSize * (1 + glow * 0.5);
+                        const glowOffset = (glowSize - this.cellSize) / 2;
+                        const glowL = Math.min(100, l + glow * 30);
+                        
+                        // Outer glow
+                        this.ctx.fillStyle = `hsla(${h}, ${s}%, ${glowL}%, ${glow * 0.3 * alpha})`;
+                        this.ctx.fillRect(px - glowOffset, py - glowOffset, glowSize, glowSize);
+                    }
+                    
+                    // Living cell - full color with fade
+                    this.ctx.fillStyle = `hsla(${h}, ${s}%, ${l}%, ${alpha})`;
                     this.ctx.fillRect(px, py, this.cellSize - 1, this.cellSize - 1);
                 } else if (this.trailGrid[y][x] > 0) {
                     // Trail effect - faded color
                     const trailL = l * this.trailGrid[y][x] * 0.5;
                     const trailS = s * this.trailGrid[y][x];
-                    this.ctx.fillStyle = `hsl(${h}, ${trailS}%, ${trailL}%)`;
+                    this.ctx.fillStyle = `hsla(${h}, ${trailS}%, ${trailL}%, ${alpha})`;
                     this.ctx.fillRect(px, py, this.cellSize - 1, this.cellSize - 1);
                 }
             }
@@ -245,7 +503,28 @@ export class GameOfLife {
         const elapsed = timestamp - this.lastFrameTime;
         
         if (elapsed >= frameInterval) {
-            this.step();
+            if (this.isFadingOut) {
+                this.fadeOutAlpha -= 0.05;
+                if (this.fadeOutAlpha <= 0) {
+                    this.fadeOutAlpha = 0;
+                    this.isFadingOut = false;
+                    this.reset(this.currentPattern);
+                }
+            } else if (this.isIntroPlaying) {
+                this.updateIntro();
+            } else {
+                this.step();
+                this.frameCount++;
+                
+                // Check life percentage and stagnation periodically
+                if (this.autoReset && this.frameCount % this.checkInterval === 0) {
+                    const lifePercent = this.getLifePercentage();
+                    if (lifePercent < this.minLifeThreshold || this.stagnationFrames > this.stagnationThreshold) {
+                        this.isFadingOut = true;
+                        this.stagnationFrames = 0;
+                    }
+                }
+            }
             this.render();
             this.lastFrameTime = timestamp - (elapsed % frameInterval);
         }
