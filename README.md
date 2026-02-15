@@ -5,16 +5,33 @@ Audio-reactive visual experiences for your desktop. Watch your music come alive.
 ## Experiences
 
 ### Game of Life
-Conway's cellular automaton that reacts to audio frequencies. Bass controls intensity, mids affect color saturation, and highs influence brightness.
-
-**Features:**
+Conway's cellular automaton that reacts to audio frequencies.
 - 16 classic patterns (Gliders, Spaceships, Oscillators, Methuselahs, Guns)
 - Adjustable resolution (2-16px cell size)
-- Multiple color presets (Spectrum, Fire, Matrix, Neon, and more)
-- Auto-reset when patterns die out
 - Spaceships fly in random directions
 
-*More experiences coming soon...*
+### Fractals
+Deep zoom into mathematical infinity.
+- **Mandelbrot** - Endless zoom into the famous fractal
+- **Julia Set** - Dynamic Julia set with audio-reactive parameters
+- **Tunnel** - Fly through a fractal wormhole
+- **Starfield** - Hyperspace warp through stars
+
+### Kaleidoscope
+Mesmerizing symmetrical patterns.
+- **Geometric** - Bouncing shapes with reflections
+- **Particles** - Orbiting glowing particles
+- **Waves** - Flowing sine waves
+- **Mandala** - Rotating ring patterns
+- **Flower** - Petal formations
+
+### Oscilloscope
+Classic audio visualization.
+- **Waveform** - Real-time audio wave display
+- **Spectrum** - Frequency bar analyzer
+- **Circular** - Radial frequency visualization
+- **Lissajous** - X/Y audio plotting
+- **Bars** - Mirrored frequency bars
 
 ## Quick Start
 
@@ -54,6 +71,31 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
 | `Space` | Pause/Resume |
 | `⌘H` | Toggle sidebar |
 | `⌘F` | Fullscreen |
+
+## Development Costs
+
+### Claude Opus 4.5 Pricing
+
+| Type | Price per 1M Tokens |
+|------|---------------------|
+| Input | $15.00 |
+| Output | $75.00 |
+| Cache Write | $18.75 |
+| Cache Read | $1.50 |
+
+### Session Costs (Example)
+
+| Category | Tokens | Cost |
+|----------|--------|------|
+| Input | 640 | $0.0096 |
+| Output | 85,500 | $6.4125 |
+| Cache Creation | 347,300 | $6.5119 |
+| Cache Read | 7,000,000 | $10.50 |
+| **Total** | | **~$23.43** |
+
+Cache Reads machen den größten Teil aus - das ist normal bei längeren Conversations, weil der Kontext immer wieder geladen wird. Cache Reads sind aber deutlich günstiger als normale Inputs ($1.50 vs $15 pro 1M Tokens), daher ist das Caching-System sehr effizient für längere Sessions.
+
+Der Output ist auch signifikant, was daran liegt, dass wir in dieser Session umfangreiche Code-Generierung und Dokumentation gemacht haben.
 
 ## License
 

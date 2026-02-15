@@ -150,6 +150,26 @@ export class AudioAnalyzer {
         return magnitudeSum > 0 ? weightedSum / magnitudeSum : 0;
     }
     
+    getWaveformData() {
+        if (!this.active || !this.analyser) {
+            return new Float32Array(2048);
+        }
+        
+        const waveform = new Float32Array(this.analyser.fftSize);
+        this.analyser.getFloatTimeDomainData(waveform);
+        return waveform;
+    }
+    
+    getRawFrequencyData() {
+        if (!this.active || !this.analyser) {
+            return new Uint8Array(1024);
+        }
+        
+        const data = new Uint8Array(this.analyser.frequencyBinCount);
+        this.analyser.getByteFrequencyData(data);
+        return data;
+    }
+    
     drawSpectrum(canvas) {
         if (!this.active || !canvas) return;
         

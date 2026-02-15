@@ -6,8 +6,15 @@ export class FractalVisualizer {
         this.running = false;
         this.animationId = null;
         
+        // WebGL for fast fractal rendering
+        this.glCanvas = document.createElement('canvas');
+        this.gl = this.glCanvas.getContext('webgl') || this.glCanvas.getContext('experimental-webgl');
+        this.glProgram = null;
+        this.initWebGL();
+        
         // Color settings
         this.colorPreset = 'spectrum';
+        this.colorPresetIndex = 0;
         this.hueOffset = 0;
         this.saturation = 80;
         this.brightness = 50;
@@ -23,17 +30,16 @@ export class FractalVisualizer {
         this.zoom = 1;
         this.centerX = -0.5;
         this.centerY = 0;
-        this.maxIterations = 100;
+        this.maxIterations = 200;
         this.juliaC = { x: -0.7, y: 0.27015 };
         this.isJulia = false;
-        this.zoomSpeed = 0.01;
-        this.zoomTarget = { x: -0.743643887037151, y: 0.131825904205330 };
+        this.zoomSpeed = 0.0005; // Very slow zoom
+        // Interesting deep zoom point in Mandelbrot set
+        this.zoomTarget = { x: -0.749, y: 0.1 };
         
         // Tunnel settings
         this.tunnelTime = 0;
-        this.tunnelSpeed = 0.02;
-        this.tunnelSegments = 32;
-        this.tunnelDepth = 50;
+        this.tunnelSpeed = 0.015;
         
         // Starfield settings
         this.stars = [];
@@ -46,13 +52,167 @@ export class FractalVisualizer {
         window.addEventListener('resize', () => this.resize());
     }
     
+    initWebGL() {
+        if (!this.gl) {
+            console.warn('WebGL not supported, falling back to CPU rendering');
+            return;
+        }
+        
+        const gl = this.gl;
+        
+        // Vertex shader
+        const vsSource = `
+            attribute vec2 a_position;
+            varying vec2 v_pos;
+            void main() {
+                v_pos = a_position;
+                gl_Position = vec4(a_position, 0.0, 1.0);
+            }
+        `;
+        
+        // Fragment shader for Mandelbrot/Julia
+        const fsSource = `
+            precision highp float;
+            varying vec2 v_pos;
+            
+            uniform vec2 u_center;
+            uniform float u_zoom;
+            uniform float u_aspectRatio;
+            uniform int u_maxIter;
+            uniform int u_isJulia;
+            uniform vec2 u_juliaC;
+            uniform float u_hueOffset;
+            uniform float u_audioMid;
+            uniform float u_audioBass;
+            uniform float u_audioHigh;
+            uniform int u_colorPreset;
+            
+            vec3 hsl2rgb(float h, float s, float l) {
+                float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+                float x = c * (1.0 - abs(mod(h / 60.0, 2.0) - 1.0));
+                float m = l - c / 2.0;
+                vec3 rgb;
+                if (h < 60.0) rgb = vec3(c, x, 0.0);
+                else if (h < 120.0) rgb = vec3(x, c, 0.0);
+                else if (h < 180.0) rgb = vec3(0.0, c, x);
+                else if (h < 240.0) rgb = vec3(0.0, x, c);
+                else if (h < 300.0) rgb = vec3(x, 0.0, c);
+                else rgb = vec3(c, 0.0, x);
+                return rgb + m;
+            }
+            
+            void main() {
+                float viewWidth = 3.5 / u_zoom;
+                float viewHeight = viewWidth / u_aspectRatio;
+                
+                float x0 = u_center.x + v_pos.x * viewWidth * 0.5;
+                float y0 = u_center.y + v_pos.y * viewHeight * 0.5;
+                
+                float x, y, cx, cy;
+                
+                if (u_isJulia == 1) {
+                    x = x0;
+                    y = y0;
+                    cx = u_juliaC.x;
+                    cy = u_juliaC.y;
+                } else {
+                    x = 0.0;
+                    y = 0.0;
+                    cx = x0;
+                    cy = y0;
+                }
+                
+                int iteration = 0;
+                for (int i = 0; i < 1000; i++) {
+                    if (i >= u_maxIter) break;
+                    if (x * x + y * y > 4.0) break;
+                    float xTemp = x * x - y * y + cx;
+                    y = 2.0 * x * y + cy;
+                    x = xTemp;
+                    iteration++;
+                }
+                
+                if (iteration >= u_maxIter) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                } else {
+                    float t = float(iteration) / float(u_maxIter);
+                    float h, s, l;
+                    float audioHue = u_audioMid * 120.0;
+                    
+                    if (u_colorPreset == 0) { // spectrum
+                        h = mod(t * 360.0 + u_hueOffset + audioHue, 360.0);
+                        s = 0.7 + u_audioHigh * 0.3;
+                        l = 0.3 + t * 0.4 + u_audioBass * 0.2;
+                    } else if (u_colorPreset == 1) { // fire
+                        h = mod(t * 60.0 + audioHue * 0.3, 60.0);
+                        s = 1.0;
+                        l = min(0.6, t * 0.8 + u_audioBass * 0.3);
+                    } else if (u_colorPreset == 2) { // ocean
+                        h = 180.0 + t * 60.0 + audioHue * 0.2;
+                        s = 0.7 + u_audioHigh * 0.3;
+                        l = 0.2 + t * 0.5 + u_audioBass * 0.2;
+                    } else if (u_colorPreset == 3) { // matrix
+                        h = 120.0;
+                        s = 0.8;
+                        l = t * 0.6 + u_audioBass * 0.3;
+                    } else if (u_colorPreset == 4) { // neon
+                        h = mod(t * 180.0 + 270.0 + audioHue, 360.0);
+                        s = 1.0;
+                        l = 0.5 + u_audioHigh * 0.2;
+                    } else { // cosmic
+                        h = mod(t * 270.0 + u_hueOffset + audioHue, 360.0);
+                        s = 0.6 + t * 0.4;
+                        l = 0.1 + t * 0.6 + u_audioBass * 0.2;
+                    }
+                    
+                    vec3 rgb = hsl2rgb(h, s, l);
+                    gl_FragColor = vec4(rgb, 1.0);
+                }
+            }
+        `;
+        
+        // Compile shaders
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, vsSource);
+        gl.compileShader(vs);
+        
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSource);
+        gl.compileShader(fs);
+        
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+            console.error('Fragment shader error:', gl.getShaderInfoLog(fs));
+        }
+        
+        // Create program
+        this.glProgram = gl.createProgram();
+        gl.attachShader(this.glProgram, vs);
+        gl.attachShader(this.glProgram, fs);
+        gl.linkProgram(this.glProgram);
+        
+        // Create quad
+        const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        
+        const posLoc = gl.getAttribLocation(this.glProgram, 'a_position');
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+    
     resize() {
-        const dpr = window.devicePixelRatio || 1;
         const rect = this.canvas.getBoundingClientRect();
         
-        this.canvas.width = rect.width * dpr;
-        this.canvas.height = rect.height * dpr;
-        this.ctx.scale(dpr, dpr);
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+        
+        // Resize WebGL canvas too
+        if (this.gl) {
+            this.glCanvas.width = rect.width;
+            this.glCanvas.height = rect.height;
+            this.gl.viewport(0, 0, rect.width, rect.height);
+        }
         
         this.width = rect.width;
         this.height = rect.height;
@@ -91,6 +251,10 @@ export class FractalVisualizer {
         this.zoom = 1;
         this.tunnelTime = 0;
         this.hueOffset = 0;
+        this.centerX = -0.5;
+        this.centerY = 0;
+        this.maxIterations = 200;
+        this.juliaC = { x: -0.7, y: 0.27015 };
         if (this.mode === 'starfield') {
             this.initStars();
         }
@@ -98,6 +262,9 @@ export class FractalVisualizer {
     
     setColorPreset(preset) {
         this.colorPreset = preset;
+        const presets = ['spectrum', 'fire', 'ocean', 'matrix', 'neon', 'cosmic'];
+        this.colorPresetIndex = presets.indexOf(preset);
+        if (this.colorPresetIndex < 0) this.colorPresetIndex = 0;
     }
     
     setAudioData(data) {
@@ -161,126 +328,154 @@ export class FractalVisualizer {
         return `hsl(${h}, ${s}%, ${l}%)`;
     }
     
-    // Mandelbrot/Julia fractal
+    // Mandelbrot/Julia fractal (WebGL accelerated)
     renderMandelbrot() {
-        const imgData = this.ctx.createImageData(this.width, this.height);
-        const data = imgData.data;
+        if (!this.gl || !this.glProgram) {
+            this.renderMandelbrotCPU();
+            return;
+        }
         
-        const aspectRatio = this.width / this.height;
-        const viewWidth = 3.5 / this.zoom;
-        const viewHeight = viewWidth / aspectRatio;
+        const gl = this.gl;
+        gl.useProgram(this.glProgram);
         
-        const xMin = this.centerX - viewWidth / 2;
-        const yMin = this.centerY - viewHeight / 2;
+        // Set uniforms
+        gl.uniform2f(gl.getUniformLocation(this.glProgram, 'u_center'), this.centerX, this.centerY);
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_zoom'), this.zoom);
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_aspectRatio'), this.width / this.height);
+        gl.uniform1i(gl.getUniformLocation(this.glProgram, 'u_maxIter'), Math.floor(this.maxIterations * (1 + this.audioBass * 0.5)));
+        gl.uniform1i(gl.getUniformLocation(this.glProgram, 'u_isJulia'), this.isJulia ? 1 : 0);
         
-        const audioBoost = 1 + this.audioBass * 0.5;
-        const iterations = Math.floor(this.maxIterations * audioBoost);
+        const jx = this.juliaC.x + Math.sin(this.hueOffset * 0.01) * 0.1 * this.audioMid;
+        const jy = this.juliaC.y + Math.cos(this.hueOffset * 0.01) * 0.1 * this.audioHigh;
+        gl.uniform2f(gl.getUniformLocation(this.glProgram, 'u_juliaC'), jx, jy);
         
-        for (let py = 0; py < this.height; py++) {
-            for (let px = 0; px < this.width; px++) {
-                const x0 = xMin + (px / this.width) * viewWidth;
-                const y0 = yMin + (py / this.height) * viewHeight;
-                
-                let x, y, cx, cy;
-                
-                if (this.isJulia) {
-                    x = x0;
-                    y = y0;
-                    cx = this.juliaC.x + Math.sin(this.hueOffset * 0.01) * 0.1 * this.audioMid;
-                    cy = this.juliaC.y + Math.cos(this.hueOffset * 0.01) * 0.1 * this.audioHigh;
-                } else {
-                    x = 0;
-                    y = 0;
-                    cx = x0;
-                    cy = y0;
-                }
-                
-                let iteration = 0;
-                
-                while (x * x + y * y <= 4 && iteration < iterations) {
-                    const xTemp = x * x - y * y + cx;
-                    y = 2 * x * y + cy;
-                    x = xTemp;
-                    iteration++;
-                }
-                
-                const idx = (py * this.width + px) * 4;
-                
-                if (iteration === iterations) {
-                    data[idx] = 0;
-                    data[idx + 1] = 0;
-                    data[idx + 2] = 0;
-                } else {
-                    const t = iteration / iterations;
-                    const hue = (t * 360 + this.hueOffset + this.audioMid * 180) % 360;
-                    const sat = 60 + this.audioHigh * 40;
-                    const light = 30 + t * 50 + this.audioBass * 20;
-                    
-                    const rgb = this.hslToRgb(hue / 360, sat / 100, light / 100);
-                    data[idx] = rgb.r;
-                    data[idx + 1] = rgb.g;
-                    data[idx + 2] = rgb.b;
-                }
-                data[idx + 3] = 255;
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_hueOffset'), this.hueOffset);
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_audioMid'), this.audioMid);
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_audioBass'), this.audioBass);
+        gl.uniform1f(gl.getUniformLocation(this.glProgram, 'u_audioHigh'), this.audioHigh);
+        gl.uniform1i(gl.getUniformLocation(this.glProgram, 'u_colorPreset'), this.colorPresetIndex || 0);
+        
+        // Render
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        
+        // Copy to main canvas
+        this.ctx.drawImage(this.glCanvas, 0, 0);
+        
+        // Julia: animate C parameter instead of zooming
+        if (this.isJulia) {
+            // Slowly morph the Julia set shape
+            const speed = 0.003 * this.baseSpeed * (1 + this.audioMid * 0.5);
+            this.juliaC.x = -0.7 + Math.sin(this.hueOffset * 0.01) * 0.3;
+            this.juliaC.y = 0.27 + Math.cos(this.hueOffset * 0.015) * 0.3;
+            
+            // Gentle zoom pulsing
+            const targetZoom = 1.2 + Math.sin(this.hueOffset * 0.005) * 0.3 + this.audioBass * 0.5;
+            this.zoom += (targetZoom - this.zoom) * 0.02;
+        } else {
+            // Mandelbrot: very slow cinematic zoom
+            const zoomFactor = this.zoomSpeed * this.baseSpeed;
+            this.zoom *= 1 + zoomFactor;
+            
+            // Smoothly move toward target point
+            const moveSpeed = 0.002;
+            this.centerX += (this.zoomTarget.x - this.centerX) * moveSpeed;
+            this.centerY += (this.zoomTarget.y - this.centerY) * moveSpeed;
+            
+            // Increase iterations as we zoom deeper for more detail
+            this.maxIterations = Math.min(400, 150 + Math.log10(Math.max(1, this.zoom)) * 25);
+            
+            // Float precision limit reached - smooth reset
+            if (this.zoom > 1e12) {
+                this.zoom = 1;
+                this.centerX = -0.5;
+                this.centerY = 0;
+                this.maxIterations = 150;
+                // Pick a new random interesting point
+                const points = [
+                    { x: -0.749, y: 0.1 },
+                    { x: -0.1011, y: 0.9563 },
+                    { x: -1.25066, y: 0.02012 },
+                    { x: -0.748, y: 0.1 },
+                    { x: 0.001643721971153, y: -0.822467633298876 }
+                ];
+                this.zoomTarget = points[Math.floor(Math.random() * points.length)];
             }
         }
         
-        this.ctx.putImageData(imgData, 0, 0);
+        this.hueOffset += 0.3 + this.audioMid;
+    }
+    
+    // Fallback CPU renderer
+    renderMandelbrotCPU() {
+        const imgData = this.ctx.createImageData(this.width, this.height);
+        const data = imgData.data;
+        const iterations = 50;
         
-        // Zoom in
-        const zoomFactor = this.zoomSpeed * this.baseSpeed * (1 + this.audioBass * 2);
-        this.zoom *= 1 + zoomFactor;
-        
-        // Move toward target
-        this.centerX += (this.zoomTarget.x - this.centerX) * zoomFactor;
-        this.centerY += (this.zoomTarget.y - this.centerY) * zoomFactor;
-        
-        // Reset zoom after deep zoom
-        if (this.zoom > 1e12) {
-            this.zoom = 1;
-            this.centerX = -0.5;
-            this.centerY = 0;
+        for (let py = 0; py < this.height; py += 2) {
+            for (let px = 0; px < this.width; px += 2) {
+                const x0 = (px / this.width - 0.5) * 3.5 / this.zoom + this.centerX;
+                const y0 = (py / this.height - 0.5) * 2 / this.zoom + this.centerY;
+                let x = 0, y = 0, iter = 0;
+                while (x*x + y*y <= 4 && iter < iterations) {
+                    const t = x*x - y*y + x0;
+                    y = 2*x*y + y0;
+                    x = t;
+                    iter++;
+                }
+                const c = iter === iterations ? 0 : (iter / iterations) * 255;
+                for (let dy = 0; dy < 2; dy++) {
+                    for (let dx = 0; dx < 2; dx++) {
+                        const idx = ((py + dy) * this.width + px + dx) * 4;
+                        data[idx] = c; data[idx+1] = c * 0.5; data[idx+2] = c * 2;
+                        data[idx+3] = 255;
+                    }
+                }
+            }
         }
-        
-        this.hueOffset += 0.5 + this.audioMid * 2;
+        this.ctx.putImageData(imgData, 0, 0);
+        this.zoom *= 1.01;
     }
     
     // Tunnel effect
     renderTunnel() {
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
         this.ctx.fillRect(0, 0, this.width, this.height);
         
-        const speed = this.tunnelSpeed * this.baseSpeed * (1 + this.audioBass * 3);
+        const speed = this.tunnelSpeed * this.baseSpeed * (1 + this.audioBass * 2);
         this.tunnelTime += speed;
         
-        const segments = this.tunnelSegments;
-        const audioWobble = this.audioMid * 30;
-        const audioRadius = 1 + this.audioBass * 0.5;
+        const segments = 64;
+        const depth = 80;
+        const baseRadius = Math.min(this.width, this.height) * 0.6;
+        const audioRadius = 1 + this.audioBass * 0.3;
         
-        for (let d = this.tunnelDepth; d > 0; d--) {
-            const z = (d + this.tunnelTime * 10) % this.tunnelDepth;
-            const scale = 1 / (z * 0.1 + 0.1);
-            const radius = (100 + audioWobble) * scale * audioRadius;
-            const alpha = Math.min(1, z / 10);
+        for (let d = depth; d > 0; d--) {
+            const z = (d + this.tunnelTime * 15) % depth;
+            const progress = z / depth;
+            const scale = 0.1 + progress * 2;
+            const radius = baseRadius * scale * audioRadius;
+            const alpha = Math.min(1, (1 - progress) * 1.5);
             
-            const hue = (this.hueOffset + z * 5 + this.audioMid * 180) % 360;
+            const hue = (this.hueOffset + z * 4 + this.audioMid * 120) % 360;
             const sat = 70 + this.audioHigh * 30;
-            const light = 40 + this.audioBass * 30;
+            const light = 35 + this.audioBass * 25 + (1 - progress) * 20;
             
             this.ctx.strokeStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
-            this.ctx.lineWidth = Math.max(1, 3 * scale);
+            this.ctx.lineWidth = Math.max(1, (1 - progress) * 4 + this.audioBass * 2);
+            
+            // Smooth tunnel sway
+            const sway = 30 + this.audioMid * 40;
+            const offsetX = Math.sin(this.tunnelTime * 0.5 + z * 0.05) * sway;
+            const offsetY = Math.cos(this.tunnelTime * 0.3 + z * 0.05) * sway;
             
             this.ctx.beginPath();
             for (let i = 0; i <= segments; i++) {
                 const angle = (i / segments) * Math.PI * 2;
-                const wobble = Math.sin(angle * 3 + this.tunnelTime * 2) * 20 * this.audioHigh;
+                const wobble = Math.sin(angle * 4 + this.tunnelTime) * 15 * this.audioHigh * progress;
                 const r = radius + wobble;
                 
-                const offsetX = Math.sin(this.tunnelTime + z * 0.1) * 50 * this.audioMid;
-                const offsetY = Math.cos(this.tunnelTime * 0.7 + z * 0.1) * 50 * this.audioMid;
-                
-                const x = this.centerScreenX + Math.cos(angle) * r + offsetX;
-                const y = this.centerScreenY + Math.sin(angle) * r + offsetY;
+                const x = this.centerScreenX + Math.cos(angle) * r + offsetX * progress;
+                const y = this.centerScreenY + Math.sin(angle) * r + offsetY * progress;
                 
                 if (i === 0) {
                     this.ctx.moveTo(x, y);
@@ -292,7 +487,7 @@ export class FractalVisualizer {
             this.ctx.stroke();
         }
         
-        this.hueOffset += 1 + this.audioMid * 3;
+        this.hueOffset += 0.8 + this.audioMid * 2;
     }
     
     // Starfield/Hyperspace

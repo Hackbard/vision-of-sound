@@ -6,10 +6,24 @@ Route::get('/', function () {
     return view('dashboard');
 });
 
+// Experiences
 Route::get('/game-of-life', function () {
     return view('simulation');
 });
 
+Route::get('/fractals', function () {
+    return view('fractals');
+});
+
+Route::get('/kaleidoscope', function () {
+    return view('kaleidoscope');
+});
+
+Route::get('/oscilloscope', function () {
+    return view('oscilloscope');
+});
+
+// Legacy routes
 Route::get('/reset/{pattern}', function (string $pattern) {
     return redirect('/game-of-life')->with('pattern', $pattern);
 });

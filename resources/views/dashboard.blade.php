@@ -343,22 +343,54 @@
                 <p>Conway's cellular automaton reacts to your music. Watch patterns evolve with bass, mids, and highs.</p>
             </a>
             
-            <div class="card disabled">
-                <span class="card-tag coming-soon">Coming Soon</span>
+            <a href="/fractals" class="card">
+                <span class="card-tag" style="background: linear-gradient(135deg, #ff00ff, #00ffff);">Active</span>
                 <div class="card-icon">
                     <svg viewBox="0 0 80 80">
                         <circle cx="40" cy="40" r="30" />
-                        <circle cx="40" cy="40" r="20" />
-                        <circle cx="40" cy="40" r="10" />
-                        <line x1="40" y1="5" x2="40" y2="15" />
-                        <line x1="40" y1="65" x2="40" y2="75" />
-                        <line x1="5" y1="40" x2="15" y2="40" />
-                        <line x1="65" y1="40" x2="75" y2="40" />
+                        <circle cx="40" cy="25" r="12" />
+                        <circle cx="28" cy="50" r="12" />
+                        <circle cx="52" cy="50" r="12" />
+                        <circle cx="40" cy="40" r="6" />
                     </svg>
                 </div>
-                <h2>???</h2>
-                <p>Next audio-reactive experience coming soon...</p>
-            </div>
+                <h2>Fractals</h2>
+                <p>Mandelbrot zoom, tunnel flights, and starfield warp. Dive deep into infinite mathematical beauty.</p>
+            </a>
+            
+            <a href="/kaleidoscope" class="card">
+                <span class="card-tag" style="background: linear-gradient(135deg, #00ff88, #00ffff);">Active</span>
+                <div class="card-icon">
+                    <svg viewBox="0 0 80 80">
+                        <polygon points="40,10 70,60 10,60" fill="none"/>
+                        <polygon points="40,20 60,55 20,55" fill="none"/>
+                        <polygon points="40,30 50,50 30,50" fill="none"/>
+                        <line x1="40" y1="10" x2="40" y2="60"/>
+                        <line x1="10" y1="60" x2="55" y2="35"/>
+                        <line x1="70" y1="60" x2="25" y2="35"/>
+                    </svg>
+                </div>
+                <h2>Kaleidoscope</h2>
+                <p>Mesmerizing symmetrical patterns. Geometric shapes, particles, and mandalas dance to your audio.</p>
+            </a>
+            
+            <a href="/oscilloscope" class="card">
+                <span class="card-tag" style="background: linear-gradient(135deg, #ffcc00, #ff8800);">Active</span>
+                <div class="card-icon">
+                    <svg viewBox="0 0 80 80">
+                        <path d="M5,40 Q15,20 25,40 T45,40 T65,40 T85,40" fill="none"/>
+                        <line x1="5" y1="55" x2="75" y2="55"/>
+                        <rect x="10" y="58" width="6" height="12"/>
+                        <rect x="20" y="52" width="6" height="18"/>
+                        <rect x="30" y="48" width="6" height="22"/>
+                        <rect x="40" y="55" width="6" height="15"/>
+                        <rect x="50" y="50" width="6" height="20"/>
+                        <rect x="60" y="56" width="6" height="14"/>
+                    </svg>
+                </div>
+                <h2>Oscilloscope</h2>
+                <p>Classic audio visualization. Waveforms, spectrum analyzers, circular displays, and Lissajous curves.</p>
+            </a>
         </div>
         
         <div class="footer">

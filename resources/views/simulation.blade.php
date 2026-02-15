@@ -647,7 +647,9 @@
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
+            if (e.code === 'Escape') {
+                window.location.href = '/';
+            } else if (e.code === 'Space') {
                 e.preventDefault();
                 btnPlayPause.click();
             } else if (e.code === 'KeyH' && (e.metaKey || e.ctrlKey)) {
