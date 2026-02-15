@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game of Life | Vision of Sound</title>
+    <title>Fractals | Vision of Sound</title>
     <style>
         * {
             margin: 0;
@@ -25,31 +25,10 @@
             height: 100vh;
         }
         
-        #game-canvas {
+        #fractal-canvas {
             display: block;
             width: 100%;
             height: 100%;
-        }
-        
-        /* Sidebar */
-        #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 280px;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            z-index: 100;
-            transform: translateX(0);
-            transition: transform 0.3s ease;
-            overflow-y: auto;
-        }
-        
-        #sidebar.hidden {
-            transform: translateX(-100%);
         }
         
         #back-btn {
@@ -75,8 +54,28 @@
         
         #back-btn:hover {
             background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(0, 255, 255, 0.5);
-            color: #0ff;
+            border-color: rgba(255, 0, 255, 0.5);
+            color: #f0f;
+        }
+        
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            z-index: 100;
+            transform: translateX(0);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        #sidebar.hidden {
+            transform: translateX(-100%);
         }
         
         #sidebar-toggle {
@@ -151,8 +150,8 @@
         }
         
         button.active {
-            background: rgba(100, 200, 255, 0.3);
-            border-color: rgba(100, 200, 255, 0.6);
+            background: rgba(255, 0, 255, 0.3);
+            border-color: rgba(255, 0, 255, 0.6);
         }
         
         button.large {
@@ -195,9 +194,19 @@
             color: #fff;
         }
         
-        select optgroup {
-            background: #333;
-            color: #888;
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .mode-buttons button {
+            padding: 12px 8px;
+            font-size: 12px;
+        }
+        
+        .mode-buttons button.full-width {
+            grid-column: 1 / -1;
         }
         
         #audio-status {
@@ -211,11 +220,10 @@
         }
         
         #audio-status.active {
-            color: #4f4;
-            background: rgba(68, 255, 68, 0.1);
+            color: #f0f;
+            background: rgba(255, 0, 255, 0.1);
         }
         
-        /* Volume Meter */
         #volume-meter {
             margin-top: 10px;
             padding: 10px;
@@ -259,30 +267,11 @@
             transition: width 0.05s ease-out;
         }
         
-        .meter-fill.bass { background: linear-gradient(90deg, #ff4444, #ff8800); }
-        .meter-fill.mid { background: linear-gradient(90deg, #44ff44, #88ff00); }
-        .meter-fill.high { background: linear-gradient(90deg, #4444ff, #00ffff); }
+        .meter-fill.bass { background: linear-gradient(90deg, #ff00ff, #ff00aa); }
+        .meter-fill.mid { background: linear-gradient(90deg, #aa00ff, #ff00ff); }
+        .meter-fill.high { background: linear-gradient(90deg, #00ffff, #00aaff); }
         .meter-fill.volume { background: linear-gradient(90deg, #888, #fff); }
         
-        #spectrum {
-            width: 100%;
-            height: 60px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 6px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        
-        #spectrum.hidden {
-            display: none;
-        }
-        
-        #spectrum-canvas {
-            width: 100%;
-            height: 100%;
-        }
-        
-        /* Keyboard hints */
         .hint {
             color: #444;
             font-size: 10px;
@@ -300,7 +289,7 @@
 </head>
 <body>
     <div id="canvas-container">
-        <canvas id="game-canvas"></canvas>
+        <canvas id="fractal-canvas"></canvas>
     </div>
     
     <a href="/" id="back-btn" title="Back to Dashboard">←</a>
@@ -308,98 +297,34 @@
     
     <div id="sidebar">
         <div class="sidebar-section">
-            <h3>Playback</h3>
-            <div class="button-group">
-                <button id="btn-play-pause" style="flex:1" title="Space">
-                    <span id="play-pause-icon">⏸</span> Pause
-                </button>
-                <button id="btn-reset" title="Reset">↻</button>
+            <h3>Mode</h3>
+            <div class="mode-buttons">
+                <button id="btn-mandelbrot" class="active">Mandelbrot</button>
+                <button id="btn-julia">Julia Set</button>
+                <button id="btn-tunnel">Tunnel</button>
+                <button id="btn-starfield">Starfield</button>
+                <button id="btn-warp" class="full-width">🚀 Toggle Warp</button>
             </div>
         </div>
         
         <div class="sidebar-section">
-            <h3>Pattern</h3>
-            <select id="pattern-select">
-                <optgroup label="Random">
-                    <option value="random">Random</option>
-                </optgroup>
-                <optgroup label="Spaceships">
-                    <option value="glider">Glider</option>
-                    <option value="lwss">LWSS</option>
-                    <option value="mwss">MWSS</option>
-                    <option value="hwss">HWSS</option>
-                </optgroup>
-                <optgroup label="Oscillators">
-                    <option value="blinker">Blinker</option>
-                    <option value="toad">Toad</option>
-                    <option value="beacon">Beacon</option>
-                    <option value="pulsar">Pulsar</option>
-                    <option value="pentadecathlon">Pentadecathlon</option>
-                </optgroup>
-                <optgroup label="Still Lifes">
-                    <option value="block">Block</option>
-                    <option value="beehive">Beehive</option>
-                    <option value="loaf">Loaf</option>
-                </optgroup>
-                <optgroup label="Methuselahs">
-                    <option value="r-pentomino">R-Pentomino</option>
-                    <option value="diehard">Diehard</option>
-                    <option value="acorn">Acorn</option>
-                </optgroup>
-                <optgroup label="Guns">
-                    <option value="glider-gun">Gosper Gun</option>
-                </optgroup>
-            </select>
-        </div>
-        
-        <div class="sidebar-section">
-            <h3>Resolution</h3>
-            <div class="control-row">
-                <span class="control-label">Cell Size</span>
-                <input type="range" id="cellsize-slider" min="2" max="16" value="8">
-                <span id="cellsize-value" style="color:#888;font-size:12px;width:30px;text-align:right">8px</span>
-            </div>
-        </div>
-        
-        <div class="sidebar-section">
-            <h3>Simulation</h3>
+            <h3>Visuals</h3>
             <div class="control-row">
                 <span class="control-label">Speed</span>
-                <input type="range" id="speed-slider" min="5" max="60" value="20">
-            </div>
-            <div class="control-row">
-                <span class="control-label">Min Life %</span>
-                <input type="range" id="threshold-slider" min="0.1" max="5" step="0.1" value="0.5">
+                <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1">
             </div>
         </div>
         
         <div class="sidebar-section">
             <h3>Colors</h3>
-            <select id="color-preset-select">
-                <optgroup label="Dynamic">
-                    <option value="spectrum">🌈 Spectrum</option>
-                    <option value="rainbow">🎨 Rainbow</option>
-                    <option value="aurora">🌌 Aurora</option>
-                </optgroup>
-                <optgroup label="Themed">
-                    <option value="fire">🔥 Fire</option>
-                    <option value="matrix">💚 Matrix</option>
-                    <option value="neon">💜 Neon</option>
-                    <option value="ocean">🌊 Ocean</option>
-                    <option value="vapor">✨ Vaporwave</option>
-                </optgroup>
-                <optgroup label="Classic">
-                    <option value="energetic">Energetic</option>
-                    <option value="psychedelic">Psychedelic</option>
-                    <option value="warm">Warm</option>
-                    <option value="cool">Cool</option>
-                    <option value="calm">Calm</option>
-                </optgroup>
+            <select id="color-preset">
+                <option value="spectrum">🌈 Spectrum</option>
+                <option value="cosmic">🌌 Cosmic</option>
+                <option value="fire">🔥 Fire</option>
+                <option value="ocean">🌊 Ocean</option>
+                <option value="matrix">💚 Matrix</option>
+                <option value="neon">💜 Neon</option>
             </select>
-            <div class="control-row" style="margin-top: 12px">
-                <span class="control-label">Sensitivity</span>
-                <input type="range" id="sensitivity-slider" min="0" max="100" value="50">
-            </div>
         </div>
         
         <div class="sidebar-section">
@@ -429,10 +354,6 @@
                     <div class="meter-bar"><div class="meter-fill high" id="meter-high"></div></div>
                 </div>
             </div>
-            <button id="btn-spectrum" style="width: 100%; margin-top: 10px">📊 Toggle Spectrum</button>
-            <div id="spectrum" class="hidden">
-                <canvas id="spectrum-canvas"></canvas>
-            </div>
         </div>
         
         <div class="hint">
@@ -441,56 +362,74 @@
     </div>
 
     <script type="module">
-        import { GameOfLife } from '/js/game-of-life.js';
+        import { FractalVisualizer } from '/js/fractal-visualizer.js';
         import { AudioAnalyzer } from '/js/audio-analyzer.js';
-        import { ColorMapper } from '/js/color-mapper.js';
         
-        const canvas = document.getElementById('game-canvas');
-        const spectrumCanvas = document.getElementById('spectrum-canvas');
+        const canvas = document.getElementById('fractal-canvas');
+        const fractal = new FractalVisualizer(canvas);
         
-        const game = new GameOfLife(canvas, {
-            cellSize: 8,
-            fps: 20
-        });
-        
-        const colorMapper = new ColorMapper();
         let audioAnalyzer = null;
         
         // UI Elements
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
-        const btnPlayPause = document.getElementById('btn-play-pause');
-        const btnReset = document.getElementById('btn-reset');
+        const backBtn = document.getElementById('back-btn');
+        const btnMandelbrot = document.getElementById('btn-mandelbrot');
+        const btnJulia = document.getElementById('btn-julia');
+        const btnTunnel = document.getElementById('btn-tunnel');
+        const btnStarfield = document.getElementById('btn-starfield');
+        const btnWarp = document.getElementById('btn-warp');
         const btnAudio = document.getElementById('btn-audio');
-        const btnSpectrum = document.getElementById('btn-spectrum');
-        const patternSelect = document.getElementById('pattern-select');
         const speedSlider = document.getElementById('speed-slider');
-        const sensitivitySlider = document.getElementById('sensitivity-slider');
-        const thresholdSlider = document.getElementById('threshold-slider');
-        const cellsizeSlider = document.getElementById('cellsize-slider');
-        const cellsizeValue = document.getElementById('cellsize-value');
-        const colorPresetSelect = document.getElementById('color-preset-select');
+        const colorPreset = document.getElementById('color-preset');
+        const audioDeviceSelect = document.getElementById('audio-device-select');
         const audioStatus = document.getElementById('audio-status');
         const audioIndicator = document.getElementById('audio-indicator');
-        const spectrum = document.getElementById('spectrum');
-        const audioDeviceSelect = document.getElementById('audio-device-select');
         const volumeMeter = document.getElementById('volume-meter');
         const meterVolume = document.getElementById('meter-volume');
         const meterBass = document.getElementById('meter-bass');
         const meterMid = document.getElementById('meter-mid');
         const meterHigh = document.getElementById('meter-high');
         
-        let isPlaying = true;
         let selectedDeviceId = localStorage.getItem('selectedAudioDevice') || null;
+        let isPaused = false;
         
         // Sidebar toggle
-        const backBtn = document.getElementById('back-btn');
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
             const isHidden = sidebar.classList.contains('hidden');
             sidebarToggle.textContent = isHidden ? '☰' : '✕';
             backBtn.style.left = isHidden ? '20px' : '300px';
             sidebarToggle.style.left = isHidden ? '70px' : '350px';
+        });
+        
+        // Mode buttons
+        const modeButtons = [btnMandelbrot, btnJulia, btnTunnel, btnStarfield];
+        
+        function setMode(mode, activeBtn) {
+            fractal.setMode(mode);
+            modeButtons.forEach(btn => btn.classList.remove('active'));
+            activeBtn.classList.add('active');
+        }
+        
+        btnMandelbrot.addEventListener('click', () => setMode('mandelbrot', btnMandelbrot));
+        btnJulia.addEventListener('click', () => setMode('julia', btnJulia));
+        btnTunnel.addEventListener('click', () => setMode('tunnel', btnTunnel));
+        btnStarfield.addEventListener('click', () => setMode('starfield', btnStarfield));
+        
+        btnWarp.addEventListener('click', () => {
+            const isWarp = fractal.toggleWarp();
+            btnWarp.classList.toggle('active', isWarp);
+            btnWarp.textContent = isWarp ? '🚀 Warp Active!' : '🚀 Toggle Warp';
+        });
+        
+        // Controls
+        speedSlider.addEventListener('input', (e) => {
+            fractal.setSpeed(parseFloat(e.target.value));
+        });
+        
+        colorPreset.addEventListener('change', (e) => {
+            fractal.setColorPreset(e.target.value);
         });
         
         // Load audio devices
@@ -514,15 +453,6 @@
                     
                     audioDeviceSelect.appendChild(option);
                 });
-                
-                if (!selectedDeviceId) {
-                    const blackhole = await AudioAnalyzer.findBlackHoleDevice();
-                    if (blackhole) {
-                        audioDeviceSelect.value = blackhole.deviceId;
-                        selectedDeviceId = blackhole.deviceId;
-                        localStorage.setItem('selectedAudioDevice', selectedDeviceId);
-                    }
-                }
             } catch (err) {
                 console.error('Failed to load audio devices:', err);
             }
@@ -544,70 +474,6 @@
                     btnAudio.click();
                 }
             }
-        });
-        
-        // Start the game
-        game.reset('random');
-        game.start();
-        
-        // Animation loop
-        function updateColors() {
-            if (audioAnalyzer && audioAnalyzer.isActive()) {
-                const audioData = audioAnalyzer.getFrequencyData();
-                const sensitivity = sensitivitySlider.value / 50;
-                const color = colorMapper.mapAudioToColor(audioData, sensitivity);
-                game.setColor(color);
-                
-                // Update volume meters
-                meterVolume.style.width = `${Math.min(100, audioData.rms * 200)}%`;
-                meterBass.style.width = `${Math.min(100, audioData.bass * 100)}%`;
-                meterMid.style.width = `${Math.min(100, audioData.mid * 100)}%`;
-                meterHigh.style.width = `${Math.min(100, audioData.high * 100)}%`;
-                
-                if (!spectrum.classList.contains('hidden')) {
-                    audioAnalyzer.drawSpectrum(spectrumCanvas);
-                }
-            }
-            requestAnimationFrame(updateColors);
-        }
-        updateColors();
-        
-        // Event handlers
-        btnPlayPause.addEventListener('click', () => {
-            isPlaying = !isPlaying;
-            if (isPlaying) {
-                game.start();
-                btnPlayPause.innerHTML = '<span id="play-pause-icon">⏸</span> Pause';
-            } else {
-                game.stop();
-                btnPlayPause.innerHTML = '<span id="play-pause-icon">▶</span> Play';
-            }
-        });
-        
-        btnReset.addEventListener('click', () => {
-            game.reset(patternSelect.value);
-        });
-        
-        patternSelect.addEventListener('change', (e) => {
-            game.reset(e.target.value);
-        });
-        
-        speedSlider.addEventListener('input', (e) => {
-            game.setFPS(parseInt(e.target.value));
-        });
-        
-        thresholdSlider.addEventListener('input', (e) => {
-            game.setMinLifeThreshold(parseFloat(e.target.value));
-        });
-        
-        cellsizeSlider.addEventListener('input', (e) => {
-            const size = parseInt(e.target.value);
-            cellsizeValue.textContent = size + 'px';
-            game.setCellSize(size);
-        });
-        
-        colorPresetSelect.addEventListener('change', (e) => {
-            colorMapper.setPreset(e.target.value);
         });
         
         btnAudio.addEventListener('click', async () => {
@@ -636,35 +502,41 @@
                 audioIndicator.textContent = 'No Audio';
                 audioStatus.classList.remove('active');
                 volumeMeter.classList.add('hidden');
-                game.setColor({ h: 0, s: 0, l: 100 });
             }
         });
         
-        btnSpectrum.addEventListener('click', () => {
-            spectrum.classList.toggle('hidden');
-            btnSpectrum.classList.toggle('active');
-        });
+        // Start
+        fractal.start();
+        
+        // Audio update loop
+        function updateAudio() {
+            if (audioAnalyzer && audioAnalyzer.isActive()) {
+                const audioData = audioAnalyzer.getFrequencyData();
+                fractal.setAudioData(audioData);
+                
+                meterVolume.style.width = `${Math.min(100, audioData.rms * 200)}%`;
+                meterBass.style.width = `${Math.min(100, audioData.bass * 100)}%`;
+                meterMid.style.width = `${Math.min(100, audioData.mid * 100)}%`;
+                meterHigh.style.width = `${Math.min(100, audioData.high * 100)}%`;
+            }
+            requestAnimationFrame(updateAudio);
+        }
+        updateAudio();
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault();
-                btnPlayPause.click();
+                isPaused = !isPaused;
+                if (isPaused) {
+                    fractal.stop();
+                } else {
+                    fractal.start();
+                }
             } else if (e.code === 'KeyH' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 sidebarToggle.click();
-            } else if (e.code === 'KeyF' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                } else {
-                    document.documentElement.requestFullscreen();
-                }
             }
-        });
-        
-        window.addEventListener('resize', () => {
-            game.resize();
         });
     </script>
 </body>

@@ -134,20 +134,58 @@ export class GameOfLife {
             this.grid = tempGrid;
             
             switch (pattern) {
+                // Spaceships (random directions)
                 case 'glider':
-                    this.fillWithPattern(this.patterns.glider, 25, 20);
+                    this.fillWithSpaceships(this.patterns.glider, 20, 15);
+                    break;
+                case 'lwss':
+                    this.fillWithSpaceships(this.patterns.lwss, 25, 20);
+                    break;
+                case 'mwss':
+                    this.fillWithSpaceships(this.patterns.mwss, 28, 22);
+                    break;
+                case 'hwss':
+                    this.fillWithSpaceships(this.patterns.hwss, 30, 24);
+                    break;
+                // Oscillators
+                case 'blinker':
+                    this.fillWithPattern(this.patterns.blinker, 12, 10);
+                    break;
+                case 'toad':
+                    this.fillWithPattern(this.patterns.toad, 15, 12);
+                    break;
+                case 'beacon':
+                    this.fillWithPattern(this.patterns.beacon, 18, 15);
                     break;
                 case 'pulsar':
                     this.fillWithPattern(this.patterns.pulsar, 35, 30);
                     break;
+                case 'pentadecathlon':
+                    this.fillWithPattern(this.patterns.pentadecathlon, 25, 20);
+                    break;
+                // Still Lifes
+                case 'block':
+                    this.fillWithPattern(this.patterns.block, 10, 10);
+                    break;
+                case 'beehive':
+                    this.fillWithPattern(this.patterns.beehive, 15, 12);
+                    break;
+                case 'loaf':
+                    this.fillWithPattern(this.patterns.loaf, 15, 14);
+                    break;
+                // Methuselahs (single instance centered)
+                case 'r-pentomino':
+                    this.placePattern(this.patterns.rPentomino, Math.floor(this.cols/2)-1, Math.floor(this.rows/2)-1);
+                    break;
+                case 'diehard':
+                    this.placePattern(this.patterns.diehard, Math.floor(this.cols/2)-4, Math.floor(this.rows/2)-1);
+                    break;
+                case 'acorn':
+                    this.placePattern(this.patterns.acorn, Math.floor(this.cols/2)-3, Math.floor(this.rows/2)-1);
+                    break;
+                // Guns
                 case 'glider-gun':
                     this.fillWithPattern(this.patterns.gliderGun, 50, 20);
-                    break;
-                case 'blinker':
-                    this.fillWithPattern(this.patterns.blinker, 15, 10);
-                    break;
-                case 'beacon':
-                    this.fillWithPattern(this.patterns.beacon, 20, 15);
                     break;
             }
             
@@ -267,20 +305,58 @@ export class GameOfLife {
                 case 'random':
                     this.randomize(0.15);
                     break;
+                // Spaceships (random directions)
                 case 'glider':
-                    this.fillWithPattern(this.patterns.glider, 25, 20);
+                    this.fillWithSpaceships(this.patterns.glider, 20, 15);
+                    break;
+                case 'lwss':
+                    this.fillWithSpaceships(this.patterns.lwss, 25, 20);
+                    break;
+                case 'mwss':
+                    this.fillWithSpaceships(this.patterns.mwss, 28, 22);
+                    break;
+                case 'hwss':
+                    this.fillWithSpaceships(this.patterns.hwss, 30, 24);
+                    break;
+                // Oscillators
+                case 'blinker':
+                    this.fillWithPattern(this.patterns.blinker, 12, 10);
+                    break;
+                case 'toad':
+                    this.fillWithPattern(this.patterns.toad, 15, 12);
+                    break;
+                case 'beacon':
+                    this.fillWithPattern(this.patterns.beacon, 18, 15);
                     break;
                 case 'pulsar':
                     this.fillWithPattern(this.patterns.pulsar, 35, 30);
                     break;
+                case 'pentadecathlon':
+                    this.fillWithPattern(this.patterns.pentadecathlon, 25, 20);
+                    break;
+                // Still Lifes
+                case 'block':
+                    this.fillWithPattern(this.patterns.block, 10, 10);
+                    break;
+                case 'beehive':
+                    this.fillWithPattern(this.patterns.beehive, 15, 12);
+                    break;
+                case 'loaf':
+                    this.fillWithPattern(this.patterns.loaf, 15, 14);
+                    break;
+                // Methuselahs (single instance centered)
+                case 'r-pentomino':
+                    this.placePattern(this.patterns.rPentomino, Math.floor(this.cols/2)-1, Math.floor(this.rows/2)-1);
+                    break;
+                case 'diehard':
+                    this.placePattern(this.patterns.diehard, Math.floor(this.cols/2)-4, Math.floor(this.rows/2)-1);
+                    break;
+                case 'acorn':
+                    this.placePattern(this.patterns.acorn, Math.floor(this.cols/2)-3, Math.floor(this.rows/2)-1);
+                    break;
+                // Guns
                 case 'glider-gun':
                     this.fillWithPattern(this.patterns.gliderGun, 50, 20);
-                    break;
-                case 'blinker':
-                    this.fillWithPattern(this.patterns.blinker, 15, 10);
-                    break;
-                case 'beacon':
-                    this.fillWithPattern(this.patterns.beacon, 20, 15);
                     break;
                 default:
                     this.randomize(0.15);
@@ -288,6 +364,41 @@ export class GameOfLife {
         } else {
             this.startIntro(pattern);
         }
+    }
+    
+    rotatePattern90(pattern) {
+        const rows = pattern.length;
+        const cols = pattern[0].length;
+        const rotated = Array(cols).fill(null).map(() => Array(rows).fill(0));
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                rotated[x][rows - 1 - y] = pattern[y][x];
+            }
+        }
+        return rotated;
+    }
+    
+    flipPatternH(pattern) {
+        return pattern.map(row => [...row].reverse());
+    }
+    
+    flipPatternV(pattern) {
+        return [...pattern].reverse();
+    }
+    
+    transformPattern(pattern, direction) {
+        // direction: 0=original, 1=90°, 2=180°, 3=270°, 4-7=flipped versions
+        let p = pattern;
+        const rotation = direction % 4;
+        const flip = direction >= 4;
+        
+        for (let i = 0; i < rotation; i++) {
+            p = this.rotatePattern90(p);
+        }
+        if (flip) {
+            p = this.flipPatternH(p);
+        }
+        return p;
     }
     
     fillWithPattern(pattern, spacingX, spacingY) {
@@ -313,6 +424,35 @@ export class GameOfLife {
         }
     }
     
+    fillWithSpaceships(pattern, spacingX, spacingY) {
+        // Calculate how many patterns fit
+        const countX = Math.floor(this.cols / spacingX);
+        const countY = Math.floor(this.rows / spacingY);
+        
+        // Center the grid of patterns
+        const totalWidth = countX * spacingX;
+        const totalHeight = countY * spacingY;
+        const baseOffsetX = Math.floor((this.cols - totalWidth) / 2);
+        const baseOffsetY = Math.floor((this.rows - totalHeight) / 2);
+        
+        for (let gy = 0; gy < countY; gy++) {
+            for (let gx = 0; gx < countX; gx++) {
+                // Random direction for each spaceship (0-7 = 8 possible orientations)
+                const direction = Math.floor(Math.random() * 8);
+                const transformed = this.transformPattern(pattern, direction);
+                
+                const patternWidth = transformed[0]?.length || 1;
+                const patternHeight = transformed.length;
+                const offsetX = Math.floor((spacingX - patternWidth) / 2);
+                const offsetY = Math.floor((spacingY - patternHeight) / 2);
+                
+                const x = baseOffsetX + gx * spacingX + offsetX;
+                const y = baseOffsetY + gy * spacingY + offsetY;
+                this.placePattern(transformed, x, y);
+            }
+        }
+    }
+    
     randomize(density = 0.15) {
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
@@ -334,13 +474,39 @@ export class GameOfLife {
     }
     
     patterns = {
+        // Spaceships
         glider: [
             [0, 1, 0],
             [0, 0, 1],
             [1, 1, 1]
         ],
+        lwss: [
+            [0, 1, 0, 0, 1],
+            [1, 0, 0, 0, 0],
+            [1, 0, 0, 0, 1],
+            [1, 1, 1, 1, 0]
+        ],
+        mwss: [
+            [0, 0, 1, 0, 0, 0],
+            [0, 1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 0]
+        ],
+        hwss: [
+            [0, 0, 1, 1, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 0]
+        ],
+        // Oscillators
         blinker: [
             [1, 1, 1]
+        ],
+        toad: [
+            [0, 1, 1, 1],
+            [1, 1, 1, 0]
         ],
         beacon: [
             [1, 1, 0, 0],
@@ -363,6 +529,44 @@ export class GameOfLife {
             [0,0,0,0,0,0,0,0,0,0,0,0,0],
             [0,0,1,1,1,0,0,0,1,1,1,0,0]
         ],
+        pentadecathlon: [
+            [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+            [1, 1, 0, 1, 1, 1, 1, 0, 1, 1],
+            [0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
+        ],
+        // Still Lifes
+        block: [
+            [1, 1],
+            [1, 1]
+        ],
+        beehive: [
+            [0, 1, 1, 0],
+            [1, 0, 0, 1],
+            [0, 1, 1, 0]
+        ],
+        loaf: [
+            [0, 1, 1, 0],
+            [1, 0, 0, 1],
+            [0, 1, 0, 1],
+            [0, 0, 1, 0]
+        ],
+        // Methuselahs
+        rPentomino: [
+            [0, 1, 1],
+            [1, 1, 0],
+            [0, 1, 0]
+        ],
+        diehard: [
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [1, 1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 1, 1, 1]
+        ],
+        acorn: [
+            [0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0],
+            [1, 1, 0, 0, 1, 1, 1]
+        ],
+        // Guns
         gliderGun: [
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0],
@@ -550,5 +754,11 @@ export class GameOfLife {
     
     setFPS(fps) {
         this.fps = Math.max(1, Math.min(60, fps));
+    }
+    
+    setCellSize(size) {
+        this.cellSize = Math.max(2, Math.min(16, size));
+        this.resize();
+        this.reset(this.currentPattern, true);
     }
 }
